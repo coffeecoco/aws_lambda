@@ -94,20 +94,18 @@ class ManageLambdaFunction:
 
         return status, encrypted # return the status of the encryption and an encrypted value
 
-    # Update lambda function with new environment variables
-    def update_lambda_with_env(self, func_lambda, aws_env_name, aws_env_value, aws_region):
+    # Update  nction with new environment variables
+    def update_lambda_with_env(self, aws_region, func_lambda, aws_dict):
 
         status = "update_unsuccessful"
-        lambd = self.aws_initialization("lambda",aws_region)
+        lambd = self.aws_initialization("lambda", aws_region)
 
         try:
             # Update Lambda function
             response = lambd.update_function_configuration(
                 FunctionName=func_lambda,
                 Environment={
-                    'Variables':{
-                        aws_env_name:aws_env_value
-                    }
+                    'Variables': aws_dict
                 }
 
             )
@@ -126,12 +124,12 @@ class ManageLambdaFunction:
 # json syntax
 # {
 #     "function_name":{
+#         "aws_region": "[value]",
+#         "aws_kms_key": "[aws_kms_key_name]" only if is_encryt == true
 #         "env_var_name":{
 #             "is_encrypt": "[true / false]",
 #             "aws_env_name": "[name]",
-#             "aws_env_value": "[value]",
-#             "aws_region": "[value]",
-#             "aws_kms_key": "[aws_kms_key_name]" only if is_encryt == true
+#             "aws_env_value": "[value]"
 #         },
 #         ...
 #     },
@@ -143,8 +141,8 @@ def main(event, context):
 
     MyManageLambdaFunction = ManageLambdaFunction()
 
-    response = results_process = env_variables_per_func = {}
-    globale_vars_func = []
+    response = env_variables_per_func = env_variables_only = {}
+    results_process = []
     status_encryption = "encryption_none"
 
     # check http response
@@ -164,16 +162,16 @@ def main(event, context):
         # Read all lmabda function
         for row_function in func_lambda_variables:
             func_lambda = row_function
+            aws_kms_key = func_lambda_variables[func_lambda]["aws_kms_key"]
+            aws_region = func_lambda_variables[func_lambda]["aws_region"]
 
             # Read all attr of lambda function
-            for attribue_name in func_lambda_variables[func_lambda]:
+            for attribue_name in func_lambda_variables[func_lambda]["data"]:
 
                 # Populate the environment valariables
-                is_encrypt = func_lambda_variables[func_lambda][attribue_name]["is_encrypt"]
-                aws_kms_key = func_lambda_variables[func_lambda][attribue_name]["aws_kms_key"]
-                aws_env_name = func_lambda_variables[func_lambda][attribue_name]["aws_env_name"]
-                aws_env_value = func_lambda_variables[func_lambda][attribue_name]["aws_env_value"]
-                aws_region = func_lambda_variables[func_lambda][attribue_name]["aws_region"]
+                is_encrypt = attribue_name["is_encrypt"]
+                aws_env_name = attribue_name["aws_env_name"]
+                aws_env_value = attribue_name["aws_env_value"]
 
                 # Check if encryption is needed
                 #
@@ -181,29 +179,32 @@ def main(event, context):
                 if is_encrypt == True :
                     status_encryption, aws_env_value = MyManageLambdaFunction.encrypt_env_variables(aws_kms_key,aws_env_value,aws_region)
 
-                # Call function which will add env variable to lambda function: update_lambda_with_env(aws_env_name, aws_env_value, aws_region)
-                status_update = MyManageLambdaFunction.update_lambda_with_env(func_lambda, aws_env_name, aws_env_value, aws_region)
+                # only: aws_env_name, aws_env_value
+                env_variables_only.update({aws_env_name:aws_env_value})
 
-                # Append to a Json table the variable information
-                env_variables_per_func = {
-                    "status_update":status_update,
-                    "aws_env_name":aws_env_name,
-                    "aws_region":aws_region,
-                    "status_encryption": status_encryption
+            # Call function which will add env variable to lambda function: update_lambda_with_env(aws_env_name, aws_env_value, aws_region)
+            status_update = MyManageLambdaFunction.update_lambda_with_env(aws_region, func_lambda, env_variables_only)
+
+            # Append to a Json table the variable information
+            env_variables_per_func = {
+                func_lambda: {
+                    "status_update": status_update,
+                    "status_encryption": status_encryption,
+                    "updated_data":
+                        env_variables_only
                 }
-
-                # All attributs for a function
-                globale_vars_func.append(env_variables_per_func)
-                env_variables_per_func = []
+            }
 
             # All functions with attributs
-            results_process[func_lambda] = globale_vars_func
-            globale_vars_func = []
+            results_process.append(env_variables_per_func)
+            env_variables_only = {}
+            env_variables_per_func = []
 
         # Get the threats JSON
         response = {"body":results_process}
 
-    print(json.dumps(response))
+    if args.test:
+       print(json.dumps(response))
 
     return response
 
