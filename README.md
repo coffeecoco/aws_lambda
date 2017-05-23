@@ -7,5 +7,5 @@ composed by all lambda function that you want to change, AWS KMS Keys,
 AWS environment variables in order to change update dynamically all your lambda functions.
 
 
-![AWS Lambda Env Vars](https://github.com/fsclyde/aws_lambda/blob/master/aws_lambda_env_vars.png, "LLD AWS Lambda Env Vars")
+![AWS Lambda Env Vars](https://github.com/fsclyde/aws_lambda/blob/master/aws_lambda_env_vars.png "LLD AWS Lambda Env Vars")
 
