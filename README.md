@@ -9,6 +9,11 @@ This is a script which allows you to PUT a JSON
 composed by all lambda function that you want to change, AWS KMS Keys,
 AWS environment variables in order to change update dynamically all your lambda functions.
 
+### Requirements
+
+* boto3
+* AWS Lambda, IA, KMS
+* API Gateway available soon
 
 ![AWS Lambda Env Vars](https://github.com/fsclyde/aws_lambda/blob/master/resources/aws_lambda_env_vars.png "LLD AWS Lambda Env Vars")
 

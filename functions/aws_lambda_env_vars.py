@@ -22,11 +22,9 @@ __author__ = "Clyde Fondop"
 
 import boto3, os
 from botocore.exceptions import ClientError
-import json
+import json, argparse
 import base64
 
-kms = boto3.client('kms', region_name='us-west-2')
-lambd = boto3.client('lambda', region_name='us-west-2')
 
 #################################################
 #
@@ -43,6 +41,14 @@ class ManageLambdaFunction:
         self.response['headers'] = {'Access-Control-Allow-Origin': '*'}
         self.response['statusCode'] = 200
         self.bad_http_requests = "Error requests wrong format"
+        self.description_text = "Change environment variable KMS for all lambda function."
+
+    # Argument for testing mode
+    def createParser(self):
+        parser = argparse.ArgumentParser(description=self.description_text)
+        parser.add_argument("-t", "--test", dest="test", required=False, help='Example usage: python aws_lambda_env_vars.py -t true')
+
+        return parser
 
     # check http response code
     def check_http_response(self, event):
@@ -61,19 +67,27 @@ class ManageLambdaFunction:
 
         return self.response, get_json
 
+    # initialize lambda AWS artefacts
+    def aws_initialization(self, module, aws_region):
+
+        aws_init = boto3.client(module, region_name=aws_region)
+
+        return aws_init
+
 
     # Encryption function for KMS
-    def encrypt_env_variables(self, kms_key, env_value):
+    def encrypt_env_variables(self, aws_kms_key, aws_env_value, aws_region):
 
         status = "encryption unsuccessful"
         encrypted = ""
+        kms = self.aws_initialization("kms", aws_region)
 
         try:
-            encrypt = kms.encrypt(KeyId=kms_key, Plaintext=env_value)
             # Base64 + utf-8 for KMS encryption
+            encrypt = kms.encrypt(KeyId=aws_kms_key, Plaintext=aws_env_value)
             encrypted = base64.b64encode(encrypt['CiphertextBlob']).decode("utf-8")
-
             status = "encryption_successful"
+
         except ClientError as e:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 status = "AWS Resource not found: check AWS region"
@@ -81,27 +95,28 @@ class ManageLambdaFunction:
         return status, encrypted # return the status of the encryption and an encrypted value
 
     # Update lambda function with new environment variables
-    def update_lambda_with_env(self, func_lambda, env_name, env_value):
+    def update_lambda_with_env(self, func_lambda, aws_env_name, aws_env_value, aws_region):
 
         status = "update_unsuccessful"
+        lambd = self.aws_initialization("lambda",aws_region)
 
         try:
+            # Update Lambda function
             response = lambd.update_function_configuration(
                 FunctionName=func_lambda,
                 Environment={
                     'Variables':{
-                        env_name:env_value
+                        aws_env_name:aws_env_value
                     }
                 }
 
             )
             status = "update_successful"
         except ClientError as e:
-             if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                 status = "AWS Resource not found"
+              if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                  status = "AWS Resource not found"
 
         return status
-
 
 #################################################
 #
@@ -113,9 +128,10 @@ class ManageLambdaFunction:
 #     "function_name":{
 #         "env_var_name":{
 #             "is_encrypt": "[true / false]",
-#             "env_name": "[name]",
-#             "env_value": "[value]",
-#             "kms_key": "[kms_key_name]" only if is_encryt == true
+#             "aws_env_name": "[name]",
+#             "aws_env_value": "[value]",
+#             "aws_region": "[value]",
+#             "aws_kms_key": "[aws_kms_key_name]" only if is_encryt == true
 #         },
 #         ...
 #     },
@@ -126,6 +142,7 @@ class ManageLambdaFunction:
 def main(event, context):
 
     MyManageLambdaFunction = ManageLambdaFunction()
+
     response = results_process = env_variables_per_func = {}
     globale_vars_func = []
     status_encryption = "encryption_none"
@@ -133,8 +150,15 @@ def main(event, context):
     # check http response
     response, func_lambda_variables = MyManageLambdaFunction.check_http_response(event)
 
-    f = open("../resources/lambda_test.json","r")
-    func_lambda_variables = json.loads(f.read())
+    # test mode
+    parser = MyManageLambdaFunction.createParser()
+    args = parser.parse_args()
+
+    if args.test:
+        f = open("../resources/lambda_test.json","r")
+        func_lambda_variables = json.loads(f.read())
+
+    ##########
 
     if func_lambda_variables:
         # Read all lmabda function
@@ -146,23 +170,25 @@ def main(event, context):
 
                 # Populate the environment valariables
                 is_encrypt = func_lambda_variables[func_lambda][attribue_name]["is_encrypt"]
-                kms_key = func_lambda_variables[func_lambda][attribue_name]["kms_key"]
-                env_name = func_lambda_variables[func_lambda][attribue_name]["env_name"]
-                env_value = func_lambda_variables[func_lambda][attribue_name]["env_value"]
+                aws_kms_key = func_lambda_variables[func_lambda][attribue_name]["aws_kms_key"]
+                aws_env_name = func_lambda_variables[func_lambda][attribue_name]["aws_env_name"]
+                aws_env_value = func_lambda_variables[func_lambda][attribue_name]["aws_env_value"]
+                aws_region = func_lambda_variables[func_lambda][attribue_name]["aws_region"]
 
                 # Check if encryption is needed
                 #
                 # Call encryption function: encrypt_env_variables(kms key, environment value)
                 if is_encrypt == True :
-                    status_encryption, env_value = MyManageLambdaFunction.encrypt_env_variables(kms_key,env_value)
+                    status_encryption, aws_env_value = MyManageLambdaFunction.encrypt_env_variables(aws_kms_key,aws_env_value,aws_region)
 
-                # Call function which will add env variable to lambda function: update_lambda_with_env(env_name, env_value)
-                status_update = MyManageLambdaFunction.update_lambda_with_env(func_lambda, env_name, env_value)
+                # Call function which will add env variable to lambda function: update_lambda_with_env(aws_env_name, aws_env_value, aws_region)
+                status_update = MyManageLambdaFunction.update_lambda_with_env(func_lambda, aws_env_name, aws_env_value, aws_region)
 
                 # Append to a Json table the variable information
                 env_variables_per_func = {
                     "status_update":status_update,
-                    "env_name":env_name,
+                    "aws_env_name":aws_env_name,
+                    "aws_region":aws_region,
                     "status_encryption": status_encryption
                 }
 
@@ -178,8 +204,6 @@ def main(event, context):
         response = {"body":results_process}
 
     print(json.dumps(response))
-
-    #print(response)
 
     return response
 
