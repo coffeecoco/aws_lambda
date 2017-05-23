@@ -1,0 +1,25 @@
+{
+  "function1":{
+    "vars1_function1":{
+      "is_encrypt": true,
+      "env_name":"name1_function1",
+      "env_value":"vars1_function1",
+      "kms_key":"f858a79d-33c0-4a02-acf0-48530ff1047c"
+    },
+    "vars2_function1":{
+      "is_encrypt":false,
+      "env_name":"name2_function1",
+      "env_value":"vars2_function1",
+      "kms_key":""
+
+    }
+  },
+  "function2":{
+    "vars1_function2":{
+      "is_encrypt":true,
+      "env_name":"name1_function2",
+      "env_value":"vars1_function2",
+      "kms_key":"f858a79d-33c0-4a02-acf0-48530ff1047c"
+    }
+  }
+}
