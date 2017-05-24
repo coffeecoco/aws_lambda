@@ -6,14 +6,15 @@ This repository has some tools for devOps, which integrates some security within
 ### aws_policy_env_vars 
 
 This is a script which allows you to PUT a JSON
-composed by all lambda function that you want to change, AWS KMS Keys,
-AWS environment variables in order to change update dynamically all your lambda functions.
+composed by all lambda function, AWS KMS Keys,
+AWS environment variables that you want to change,
+ n order dynamically update environment variables for these.
 
 ### Requirements
 
 * Boto3
-* AWS Lambda, IA, KMS
-* API Gateway available soon
+* AWS Lambda, IAM, KMS, API Gateway
+* AWS Cloud Formation in progress
 
 ![AWS Lambda Env Vars](https://github.com/fsclyde/aws_lambda/blob/master/resources/aws_lambda_env_vars.png "LLD AWS Lambda Env Vars")
 

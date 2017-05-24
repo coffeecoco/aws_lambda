@@ -1,0 +1,32 @@
+---
+swagger: "2.0"
+info:
+  version: "2017-05-24T10:38:42Z"
+  title: "env_vars"
+host: "owgngrq767.execute-api.us-east-2.amazonaws.com"
+basePath: "/prod"
+schemes:
+- "https"
+paths:
+  /devsecops/envars:
+    put:
+      produces:
+      - "application/json"
+      responses:
+        200:
+          description: "200 response"
+          schema:
+            $ref: "#/definitions/Empty"
+      x-amazon-apigateway-integration:
+        responses:
+          default:
+            statusCode: "200"
+        uri: "arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/arn:aws:lambda:us-east-2:824366033707:function:aws_lambda_env_vars/invocations"
+        passthroughBehavior: "when_no_match"
+        httpMethod: "POST"
+        contentHandling: "CONVERT_TO_TEXT"
+        type: "aws"
+definitions:
+  Empty:
+    type: "object"
+    title: "Empty Schema"
