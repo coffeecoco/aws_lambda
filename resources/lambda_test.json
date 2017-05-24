@@ -1,27 +1,24 @@
 {
   "function1":{
-    "vars1_function1":{
+    "aws_region":"us-east-2",
+    "aws_kms_key":"f858a79d-33c0-4a02-acf0-48530ff1047c",
+    "data":[{
       "is_encrypt": true,
       "aws_env_name":"name1_function1",
-      "aws_env_value":"vars1_function1",
-      "aws_kms_key":"f858a79d-33c0-4a02-acf0-48530ff1047c",
-      "aws_region":"us-east-2"
-    },
-    "vars2_function1":{
-      "is_encrypt":false,
+      "aws_env_value":"vars1_function1"
+    },{
+      "is_encrypt": false,
       "aws_env_name":"name2_function1",
-      "aws_env_value":"vars2_function1",
-      "aws_kms_key":"",
-      "aws_region":"us-east-2"
-    }
+      "aws_env_value":"vars2_function1"
+    }]
   },
   "function2":{
-    "vars1_function2":{
-      "is_encrypt":true,
+    "aws_region":"us-east-2",
+    "aws_kms_key":"f858a79d-33c0-4a02-acf0-48530ff1047c",
+    "data":[{
+      "is_encrypt": true,
       "aws_env_name":"name1_function2",
-      "aws_env_value":"vars1_function2",
-      "aws_kms_key":"f858a79d-33c0-4a02-acf0-48530ff1047c",
-      "aws_region":"us-east-2"
-    }
+      "aws_env_value":"vars1_function2"
+    }]
   }
 }

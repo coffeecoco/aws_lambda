@@ -46,7 +46,8 @@ class ManageLambdaFunction:
     # Argument for testing mode
     def createParser(self):
         parser = argparse.ArgumentParser(description=self.description_text)
-        parser.add_argument("-t", "--test", dest="test", required=False, help='Example usage: python aws_lambda_env_vars.py -t true')
+        parser.add_argument("-t", "--test", dest="test", required=False,
+                            help='Example usage: python aws_lambda_env_vars.py -t true')
 
         return parser
 
@@ -56,7 +57,7 @@ class ManageLambdaFunction:
         get_json = {}
 
         try:
-            get_json = event['body']
+            get_json = event
             checkJson = True
         except KeyError:
             self.response["body"] = self.bad_http_requests
@@ -73,7 +74,6 @@ class ManageLambdaFunction:
         aws_init = boto3.client(module, region_name=aws_region)
 
         return aws_init
-
 
     # Encryption function for KMS
     def encrypt_env_variables(self, aws_kms_key, aws_env_value, aws_region):
@@ -92,7 +92,7 @@ class ManageLambdaFunction:
             if e.response['Error']['Code'] == 'ResourceNotFoundException':
                 status = "AWS Resource not found: check AWS region"
 
-        return status, encrypted # return the status of the encryption and an encrypted value
+        return status, encrypted  # return the status of the encryption and an encrypted value
 
     # Update  nction with new environment variables
     def update_lambda_with_env(self, aws_region, func_lambda, aws_dict):
@@ -111,10 +111,23 @@ class ManageLambdaFunction:
             )
             status = "update_successful"
         except ClientError as e:
-              if e.response['Error']['Code'] == 'ResourceNotFoundException':
-                  status = "AWS Resource not found"
+            if e.response['Error']['Code'] == 'ResourceNotFoundException':
+                status = "AWS Resource not found"
 
         return status
+
+    # Get value
+    def get_value_from_json(self, input_json, attribut):
+
+        try:
+            value = input_json[attribut]
+        except KeyError:
+            message = "Wrong value entered {}.".format(attribut)
+            print(message)
+            exit(1)
+
+        return value
+
 
 #################################################
 #
@@ -138,22 +151,21 @@ class ManageLambdaFunction:
 
 
 def main(event, context):
-
-    MyManageLambdaFunction = ManageLambdaFunction()
+    MyMLF = ManageLambdaFunction()
 
     response = env_variables_per_func = env_variables_only = {}
     results_process = []
     status_encryption = "encryption_none"
 
     # check http response
-    response, func_lambda_variables = MyManageLambdaFunction.check_http_response(event)
+    response, func_lambda_variables = MyMLF.check_http_response(event)
 
     # test mode
-    parser = MyManageLambdaFunction.createParser()
+    parser = MyMLF.createParser()
     args = parser.parse_args()
 
     if args.test:
-        f = open("../resources/lambda_test.json","r")
+        f = open("../resources/lambda_test.json", "r")
         func_lambda_variables = json.loads(f.read())
 
     ##########
@@ -162,28 +174,30 @@ def main(event, context):
         # Read all lmabda function
         for row_function in func_lambda_variables:
             func_lambda = row_function
-            aws_kms_key = func_lambda_variables[func_lambda]["aws_kms_key"]
-            aws_region = func_lambda_variables[func_lambda]["aws_region"]
+            aws_kms_key = MyMLF.get_value_from_json(func_lambda_variables[func_lambda], "aws_kms_key")
+            aws_region = MyMLF.get_value_from_json(func_lambda_variables[func_lambda], "aws_region")
+            data_value = MyMLF.get_value_from_json(func_lambda_variables[func_lambda], "data")
 
             # Read all attr of lambda function
-            for attribue_name in func_lambda_variables[func_lambda]["data"]:
+            for attribue_name in data_value:
 
                 # Populate the environment valariables
-                is_encrypt = attribue_name["is_encrypt"]
-                aws_env_name = attribue_name["aws_env_name"]
-                aws_env_value = attribue_name["aws_env_value"]
+                is_encrypt = MyMLF.get_value_from_json(attribue_name, "is_encrypt")
+                aws_env_name = MyMLF.get_value_from_json(attribue_name, "aws_env_name")
+                aws_env_value = MyMLF.get_value_from_json(attribue_name, "aws_env_value")
 
                 # Check if encryption is needed
                 #
                 # Call encryption function: encrypt_env_variables(kms key, environment value)
-                if is_encrypt == True :
-                    status_encryption, aws_env_value = MyManageLambdaFunction.encrypt_env_variables(aws_kms_key,aws_env_value,aws_region)
+                if is_encrypt == True:
+                    status_encryption, aws_env_value = MyMLF.encrypt_env_variables(aws_kms_key, aws_env_value,
+                                                                                   aws_region)
 
                 # only: aws_env_name, aws_env_value
-                env_variables_only.update({aws_env_name:aws_env_value})
+                env_variables_only.update({aws_env_name: aws_env_value})
 
             # Call function which will add env variable to lambda function: update_lambda_with_env(aws_env_name, aws_env_value, aws_region)
-            status_update = MyManageLambdaFunction.update_lambda_with_env(aws_region, func_lambda, env_variables_only)
+            status_update = MyMLF.update_lambda_with_env(aws_region, func_lambda, env_variables_only)
 
             # Append to a Json table the variable information
             env_variables_per_func = {
@@ -201,12 +215,13 @@ def main(event, context):
             env_variables_per_func = []
 
         # Get the threats JSON
-        response = {"body":results_process}
+        response["body"] = results_process
 
     if args.test:
-       print(json.dumps(response))
+        print(json.dumps(response))
 
     return response
+
 
 if __name__ == '__main__':
     context = event = {}
